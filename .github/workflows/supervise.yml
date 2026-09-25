@@ -1,0 +1,43 @@
+name: Independent runner supervisor
+on:
+  schedule:
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply routing and approved infrastructure recovery (otherwise inspect only)
+        type: boolean
+        default: false
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: independent-runner-supervisor
+  cancel-in-progress: false
+jobs:
+  supervise:
+    # Never expose the App key to a PR or a non-default branch.
+    if: github.ref == 'refs/heads/main' && vars.RUNNER_APP_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app
+        with:
+          app-id: ${{ vars.RUNNER_APP_ID }}
+          private-key: ${{ secrets.RUNNER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          # Inherit only the dedicated App's configured permissions, including
+          # Variables (the action has no separate Variables permission input).
+          skip-token-revoke: false
+      - name: Reconcile runner policy and safe recovery
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          RUNNER_OWNER: ${{ github.repository_owner }}
+          INCLUDED_MINUTES: ${{ vars.INCLUDED_MINUTES || '2000' }}
+          RESERVE_MINUTES: ${{ vars.RESERVE_MINUTES || '100' }}
+          SUPERVISOR_APPLY: ${{ (github.event_name == 'schedule' && vars.SUPERVISOR_ENABLED == 'true') || (github.event_name == 'workflow_dispatch' && inputs.apply) }}
+        run: python3 -m control.supervisor
