@@ -12,7 +12,7 @@ No application source, private inventory, workflow logs, billing reports or cred
 
 Migrated compatible workflows expose `runner_target` (`auto`, `github`, `vps`) and `allow_fallback` (default true) in **Actions → Run workflow**.
 
-- `auto`: GitHub while included compute remains; VPS near quota exhaustion if a matching runner is online.
+- `auto`: GitHub while included compute remains; VPS near quota exhaustion if a matching runner is online and idle. A busy VPS overflows to GitHub, allowing another run in parallel without adding a second heavy runtime on the VPS.
 - `github`: always the original hosted image.
 - `vps`: explicitly select the self-hosted pool. Disable fallback for a strict local test.
 - A rerun with fallback allowed uses GitHub. Reruns retain the original event, ref and SHA; changing inputs requires a new manual dispatch.
@@ -28,7 +28,7 @@ The current default entitlement is 2,000 Linux-equivalent minutes with a 100-min
 The supervisor runs approximately every five minutes. GitHub schedules are best-effort and may be delayed; this is not a hard availability SLA.
 
 - Only labeled, opted-in jobs on their first attempt can be rescued automatically.
-- A queue stalled with no online matching runner can be cancelled after a grace period, provided no job is executing or waiting for environment approval.
+- A queue stalled with no online matching runner can be cancelled after a five-minute grace period. A saturated online pool permits hosted overflow after a one-minute grace period. In both cases, no job in the rescued run may be executing or waiting for environment approval. The occupying run is never cancelled. Capacity and job state are rechecked before cancellation; schedule latency still applies.
 - The controller records its own cancellation before recovery. Human cancellations are not retry requests.
 - `rerun-failed-jobs` resumes cancelled/failed work without replaying successful jobs. A real synthetic test verified two queued jobs and their dependent job resumed on hosted runners, keeping the successful setup job's original execution.
 - The controller rechecks cancellation races: if a supposedly queued job actually started, it requests human attention instead of replaying side effects.
@@ -88,6 +88,8 @@ The trusted lifecycle process registers a **one-job JIT runner** and passes its 
 Host-local and private/VPN/metadata destinations are denied for the isolated Unix UID with nftables (the system DNS stub is the narrow exception). Public egress remains available for GitHub and dependency registries. Rootless port publishing is disabled; the namespace must not expose job services on the VPS. Regenerate the rules after host address changes. Workflows that legitimately require private networking need a separately reviewed runner, not a blanket exception here.
 
 Container jobs share the disposable runner `externals`, work directory and tool cache through identical absolute paths visible to the isolated daemon. The root-owned Docker wrapper translates only the runner's well-known socket volume source to the dedicated rootless socket; it never uses a host root Docker socket. Container-to-service networking is supported and tested. Jobs relying on host-published localhost service ports remain hosted; the migrator must not silently route these jobs to a runtime without that capability.
+
+The image includes `python-is-python3`, so early workflow checks can use `python` before `setup-python`. The runner HOME is its disposable daemon-visible runner directory: Docker actions that bind `$HOME/.azure` see the isolated directory, not an inaccessible container-only path or the host user's home. Verify this with a credential-free Azure CLI action, never by reading production credentials.
 
 `infra/runner-data.mount` is a template to install as `var-lib-kodifyci-data.mount`. It expects an already-initialized **regular image file**, not a block device. `infra/runtime-smoke.yml` is a synthetic manual test fixture for a private repository, not a customer deployment. Initialization, namespace isolation checks, resource-limit checks and ephemeral registration must be verified before enrollment. The 8 GiB filesystem budget leaves only several GiB for each build after loading the tools; large Docker/Android builds need separate capacity validation. New image archives require versioned rebuilding and smoke testing. A clean runtime reload adds startup latency between jobs.
 

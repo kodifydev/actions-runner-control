@@ -1,7 +1,7 @@
 FROM ghcr.io/actions/actions-runner@sha256:e5496277be5d09bc968b3d64911b74e219ac4a3f2edce956a3ecf9271bea1ef4
 USER root
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      build-essential python3-venv python3-pip zip rsync zstd gnupg ca-certificates \
+      build-essential python3-venv python3-pip python-is-python3 zip rsync zstd gnupg ca-certificates \
     && curl --fail --silent --show-error --location https://packages.microsoft.com/keys/microsoft.asc \
        | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg \
     && rm -rf /var/lib/apt/lists/*

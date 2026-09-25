@@ -44,9 +44,9 @@ class QuotaTests(unittest.TestCase):
         q = quota_from_usage(usage('1', '.01'), 2000)
         self.assertEqual(preferred_runner(q, [runner()], private=True), 'vps')
 
-    def test_busy_is_not_offline(self):
+    def test_busy_pool_overflows_to_hosted(self):
         q = quota_from_usage(usage('12'), 2000)
-        self.assertEqual(preferred_runner(q, [runner(busy=True)], private=True), 'vps')
+        self.assertEqual(preferred_runner(q, [runner(busy=True)], private=True), 'github')
 
     def test_offline_falls_back_hosted(self):
         q = quota_from_usage(usage('12'), 2000)
