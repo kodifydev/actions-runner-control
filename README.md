@@ -6,7 +6,7 @@ No application source, private inventory, workflow logs, billing reports or cred
 
 ## Status
 
-**Not activated for the application fleet yet.** Controller code and migration tooling are implemented. Unit tests and a real GitHub recovery smoke test have passed. The isolated ephemeral runner has now executed real Actions jobs, including checkout, Node/Python setup and a Buildx image build. Consecutive jobs verified that filesystem and Docker state are discarded, and a manual hosted run passed too. The dedicated App and fleet rollout remain activation gates; this is not a claim of organization-wide completion.
+**Activation is explicitly scoped, not organization-wide by default.** The dedicated App has authenticated successfully from GitHub-hosted supervision. A real offline-runner test recovered queued jobs on GitHub while preserving prior successful work. The isolated runtime has executed checkout, Node/Python setup, Buildx builds and container jobs with PostgreSQL services; consecutive runs and an idle restart verified clean disposable state. Each target repository must still be deliberately enrolled and its workload compatibility checked. This generic repository does not publish private fleet inventory or claim that every repository is enrolled.
 
 ## Execution policy
 
