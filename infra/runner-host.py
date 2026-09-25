@@ -106,6 +106,10 @@ def main():
     print(f'Ephemeral runner registered: {runner_id}', flush=True)
     try:
         command = DOCKER + ['run', '--rm', '-i', '--name', 'kodify-job-runner', '--group-add', '0',
+            '--env', 'RUNNER_TOOL_CACHE=/var/lib/kodifyci/data/work/toolcache',
+            '--env', 'AGENT_TOOLSDIRECTORY=/var/lib/kodifyci/data/work/toolcache',
+            '--env', 'PATH=/opt/runner-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+            '--mount', 'type=bind,src=/opt/kodify-runner/docker-wrapper.py,dst=/opt/runner-bin/docker,readonly',
             '--workdir', runner_path,
             '--mount', f'type=bind,src={runner_path},dst={runner_path}',
             '--mount', 'type=bind,src=/run/kodify-ci/docker.sock,dst=/var/run/docker.sock',
