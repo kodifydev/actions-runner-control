@@ -87,6 +87,13 @@ def main():
             raise RuntimeError('Trusted runner image could not be restored')
     image = config['image_id']
     checked(DOCKER + ['image', 'inspect', image], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Container jobs bind runner externals from the Docker daemon's filesystem.
+    # Use the same isolated absolute path in both namespaces, never host /home.
+    runner_path = '/var/lib/kodifyci/data/runner'
+    checked(DOCKER + ['run', '--rm', '--user', '0', '--entrypoint', 'bash',
+        '--mount', f'type=bind,src={runner_path},dst=/export', image,
+        '-c', 'cp -a /home/runner/. /export/'],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     name = 'kodify-vps-' + uuid.uuid4().hex[:12]
     registration = api('POST', f"orgs/{config['organization']}/actions/runners/generate-jitconfig", {
         'name': name, 'runner_group_id': config['runner_group_id'],
@@ -99,6 +106,8 @@ def main():
     print(f'Ephemeral runner registered: {runner_id}', flush=True)
     try:
         command = DOCKER + ['run', '--rm', '-i', '--name', 'kodify-job-runner', '--group-add', '0',
+            '--workdir', runner_path,
+            '--mount', f'type=bind,src={runner_path},dst={runner_path}',
             '--mount', 'type=bind,src=/run/kodify-ci/docker.sock,dst=/var/run/docker.sock',
             '--mount', 'type=bind,src=/var/lib/kodifyci/data/work,dst=/var/lib/kodifyci/data/work',
             image]

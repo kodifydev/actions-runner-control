@@ -27,7 +27,7 @@ for entry in ROOT.iterdir():
     else:
         shutil.rmtree(entry)
 os.chown(ROOT, owner.pw_uid, owner.pw_gid)
-for name, mode in [('home', 0o700), ('work', 0o777)]:
+for name, mode in [('home', 0o700), ('work', 0o777), ('runner', 0o777)]:
     path = ROOT / name
     path.mkdir(mode=mode)
     os.chown(path, owner.pw_uid, owner.pw_gid)

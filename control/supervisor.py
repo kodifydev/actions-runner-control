@@ -17,7 +17,8 @@ RECOVERY_VAR = 'KODIFY_RUNNER_RECOVERY'
 
 class Supervisor:
     def __init__(self, api: GitHub, owner: str, *, apply=False, included=2000,
-                 reserve=100, now=None, control_repository='actions-runner-control'):
+                 reserve=100, now=None, control_repository='actions-runner-control',
+                 allowed_repositories=None):
         if not owner or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-' for c in owner):
             raise ValueError('Invalid owner')
         self.api = api
@@ -27,6 +28,7 @@ class Supervisor:
         self.reserve = reserve
         self.now = now or datetime.now(timezone.utc)
         self.control_repository = control_repository
+        self.allowed_repositories = allowed_repositories
         self.counts = Counter()
 
     def set_variable(self, repo, name, value):
@@ -163,6 +165,8 @@ class Supervisor:
                     self.counts['recoveries_verified'] += 1
 
     def tick(self):
+        if self.apply and not self.allowed_repositories:
+            raise ValueError('Explicit repository scope required for mutations')
         try:
             report = self.api.request('GET', f'/organizations/{self.owner}/settings/billing/usage/summary'
                 f'?product=Actions&year={self.now.year}&month={self.now.month}')
@@ -174,6 +178,8 @@ class Supervisor:
         repositories = self.api.pages('/installation/repositories', 'repositories')
         for repo in repositories:
             if repo.get('owner', {}).get('login', '').lower() != self.owner.lower():
+                continue
+            if self.allowed_repositories is not None and repo.get('name') not in self.allowed_repositories:
                 continue
             try:
                 self.inspect_repository(repo, quota, runners)
@@ -187,7 +193,9 @@ def main():
     supervisor = Supervisor(api, os.environ['RUNNER_OWNER'],
         apply=os.environ.get('SUPERVISOR_APPLY') == 'true',
         included=int(os.environ.get('INCLUDED_MINUTES', '2000')),
-        reserve=int(os.environ.get('RESERVE_MINUTES', '100')))
+        reserve=int(os.environ.get('RESERVE_MINUTES', '100')),
+        allowed_repositories=frozenset(x.strip() for x in
+            os.environ.get('RUNNER_REPOSITORIES', '').split(',') if x.strip()))
     try:
         counts = supervisor.tick()
     except (APIError, ValueError, KeyError, TypeError, RuntimeError):
