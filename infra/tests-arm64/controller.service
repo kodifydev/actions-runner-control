@@ -1,0 +1,26 @@
+[Unit]
+Description=Remote isolated ARM64 test runner controller
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=__CONTROL_USER__
+Group=__CONTROL_GROUP__
+Environment=HOME=__CONTROL_HOME__
+Environment=PATH=__CONTROL_HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/python3 /opt/kodify-tests-controller/controller.py
+Restart=on-failure
+RestartSec=30
+CPUQuota=25%
+MemoryMax=192M
+TasksMax=64
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=__CONTROL_HOME__/.local/state/kodify-tests
+PrivateTmp=yes
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

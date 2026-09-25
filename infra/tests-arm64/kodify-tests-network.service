@@ -1,0 +1,13 @@
+[Unit]
+Description=Isolated test runner network guard
+After=docker.service network-online.target
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/kodify-tests/network.py
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

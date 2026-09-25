@@ -93,6 +93,10 @@ The image includes `python-is-python3`, so early workflow checks can use `python
 
 `infra/runner-data.mount` is a template to install as `var-lib-kodifyci-data.mount`. It expects an already-initialized **regular image file**, not a block device. `infra/runtime-smoke.yml` is a synthetic manual test fixture for a private repository, not a customer deployment. Initialization, namespace isolation checks, resource-limit checks and ephemeral registration must be verified before enrollment. The 8 GiB filesystem budget leaves only several GiB for each build after loading the tools; large Docker/Android builds need separate capacity validation. New image archives require versioned rebuilding and smoke testing. A clean runtime reload adds startup latency between jobs.
 
+## ARM64 tests-only alternative
+
+For a protected edge host, `infra/tests-arm64/` provides a separate test-only runtime: one disposable non-root container, no job-visible Docker socket or host mounts, private-network denial, bounded CPU/RAM, and disposable PostgreSQL. A trusted controller streams JIT registration over SSH; durable GitHub credentials never reach the edge host. `tools/tests_only_routing.py` routes only reviewed test jobs there and keeps all release jobs hosted. See [the installation and verification guide](infra/tests-arm64/README.md). This does not make the legacy all-purpose X64 runtime architecture-independent.
+
 ## Remaining activation gates
 
 1. Verify dedicated App authentication, billing read, runner read and repository variable writes.
