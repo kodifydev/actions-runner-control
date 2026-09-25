@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Disposable local test DB only. No published ports, host mounts or production credentials.
-initdb -D "$HOME/test-postgres" --username=postgres --auth=trust >/dev/null
+# Force UTF-8 even when the minimal runner image defaults to the C locale.
+# SQL_ASCII makes psycopg return bytes and breaks SQLAlchemy dialect startup.
+initdb -D "$HOME/test-postgres" --username=postgres --auth=trust --encoding=UTF8 --locale=C.UTF-8 >/dev/null
 pg_ctl -D "$HOME/test-postgres" -l "$HOME/postgres.log" \
   -o "-h 127.0.0.1 -k $HOME/test-postgres-socket -c shared_buffers=128MB -c max_connections=100 -c statement_timeout=300000" -w start >/dev/null
 if [[ "${1:-}" == "--probe" ]]; then

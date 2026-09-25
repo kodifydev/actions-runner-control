@@ -15,6 +15,7 @@ CONFIG = Path('/etc/kodify-tests.json')
 def command(image, probe=False):
     cmd = ['docker', 'run', '--rm', '-i', '--name', NAME, '--label', 'kodify.role=tests',
            '--network', 'kodify-ci-tests', '--dns', '1.1.1.1', '--dns', '8.8.8.8',
+           '--sysctl', 'net.ipv6.conf.all.disable_ipv6=1', '--sysctl', 'net.ipv6.conf.default.disable_ipv6=1',
            '--cpus', '2', '--cpu-shares', '128', '--memory', '6g', '--memory-reservation', '5g',
            '--memory-swap', '6g', '--pids-limit', '512', '--oom-score-adj', '500',
            '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',

@@ -83,6 +83,11 @@ class TestsOnlyRoutingTests(unittest.TestCase):
         self.assertIn('statement_timeout=300000', starts[0]['run'])
 
 class LauncherTests(unittest.TestCase):
+    def test_postgres_is_utf8_and_queries_are_bounded(self):
+        entrypoint = (Path(__file__).parents[1] / 'infra/tests-arm64/entrypoint.sh').read_text()
+        self.assertIn('--encoding=UTF8 --locale=C.UTF-8', entrypoint)
+        self.assertIn('statement_timeout=300000', entrypoint)
+
     def test_container_has_no_host_mounts_socket_devices_or_privilege(self):
         path = Path(__file__).parents[1] / 'infra/tests-arm64/launch.py'
         spec = importlib.util.spec_from_file_location('test_launcher', path)
