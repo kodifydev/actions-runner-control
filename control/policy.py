@@ -77,7 +77,10 @@ def runner_expression(hosted: str = "ubuntu-latest") -> str:
     enabled = '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-enabled"]'
     strict = '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-disabled"]'
     return (
-        "${{ ((inputs.runner_target == 'vps' || "
+        "${{ (github.event_name != 'pull_request_target' "
+        "&& github.actor != 'dependabot[bot]' "
+        "&& (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) "
+        "&& (inputs.runner_target == 'vps' || "
         "(inputs.runner_target != 'github' && vars.KODIFY_RUNNER_MODE == 'vps')) "
         "&& (github.run_attempt == 1 || (github.event_name == 'workflow_dispatch' "
         "&& inputs.allow_fallback == false))) "

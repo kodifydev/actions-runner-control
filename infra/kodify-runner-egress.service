@@ -1,0 +1,13 @@
+[Unit]
+Description=Prevent the CI runtime from accessing host-local services
+Before=kodify-rootless-docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/usr/sbin/nft delete table inet kodify_ci
+ExecStart=/usr/sbin/nft -f /etc/kodify-runner-egress.nft
+ExecStop=/usr/sbin/nft delete table inet kodify_ci
+
+[Install]
+WantedBy=multi-user.target

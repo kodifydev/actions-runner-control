@@ -1,0 +1,45 @@
+# Dedicated rootless Docker namespace; this is NOT a root host Docker socket.
+[Unit]
+Description=Isolated rootless Docker for ephemeral Actions runners
+After=network-online.target var-lib-kodifyci-data.mount kodify-runner-egress.service
+Wants=network-online.target
+Requires=var-lib-kodifyci-data.mount kodify-runner-egress.service
+
+[Service]
+User=kodify-ci
+Group=kodify-ci
+Environment=HOME=/var/lib/kodifyci/data/home
+Environment=XDG_RUNTIME_DIR=/run/kodify-ci
+Environment=PATH=/opt/kodify-runner/docker:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=DOCKERD_ROOTLESS_ROOTLESSKIT_NET=slirp4netns
+Environment=DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=none
+Environment=DOCKERD_ROOTLESS_ROOTLESSKIT_MTU=1500
+RuntimeDirectory=kodify-ci
+RuntimeDirectoryMode=0700
+ExecStart=/opt/kodify-runner/docker/dockerd-rootless.sh --host=unix:///run/kodify-ci/docker.sock --data-root=/var/lib/kodifyci/data/docker --exec-opt native.cgroupdriver=cgroupfs
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=90
+TimeoutStopSec=60
+KillMode=mixed
+Delegate=yes
+CPUQuota=200%
+MemoryHigh=3000M
+MemoryMax=3500M
+MemorySwapMax=512M
+TasksMax=2048
+Nice=10
+UMask=0077
+ProtectSystem=strict
+ProtectHome=yes
+ProtectProc=invisible
+PrivateTmp=yes
+InaccessiblePaths=/mnt /media /srv /var/backups
+ReadWritePaths=/var/lib/kodifyci/data /run/kodify-ci
+RestrictRealtime=yes
+LockPersonality=yes
+LimitCORE=0
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

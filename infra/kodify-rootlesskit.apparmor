@@ -1,0 +1,8 @@
+# AppArmor user-namespace exception for this pinned rootlesskit binary only.
+# Do not disable kernel.apparmor_restrict_unprivileged_userns globally.
+abi <abi/4.0>,
+include <tunables/global>
+
+/opt/kodify-runner/docker/rootlesskit flags=(unconfined) {
+  userns,
+}
