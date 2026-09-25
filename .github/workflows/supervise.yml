@@ -10,7 +10,7 @@ on:
         default: false
         required: true
 permissions:
-  contents: read
+  contents: write # Public heartbeat only; App permissions are separately scoped.
 concurrency:
   group: independent-runner-supervisor
   cancel-in-progress: false
@@ -37,7 +37,13 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           RUNNER_OWNER: ${{ github.repository_owner }}
+          RUNNER_REPOSITORIES: ${{ secrets.RUNNER_REPOSITORIES }}
           INCLUDED_MINUTES: ${{ vars.INCLUDED_MINUTES || '2000' }}
           RESERVE_MINUTES: ${{ vars.RESERVE_MINUTES || '100' }}
           SUPERVISOR_APPLY: ${{ (github.event_name == 'schedule' && vars.SUPERVISOR_ENABLED == 'true') || (github.event_name == 'workflow_dispatch' && inputs.apply) }}
         run: python3 -m control.supervisor
+      - name: Maintain scheduled supervision activity
+        if: github.event_name == 'schedule' && vars.SUPERVISOR_ENABLED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -m control.keepalive

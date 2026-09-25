@@ -53,6 +53,8 @@ Organization permissions:
 
 Install it for the organization repositories. Store its PEM only as the repository secret `RUNNER_APP_PRIVATE_KEY`, and its App ID as the repository variable `RUNNER_APP_ID`. Never paste the PEM in an issue, chat, commit or log. The supervisor requests short-lived installation tokens and revokes them on completion; it does not use a personal administrator token.
 
+Control repository secret `RUNNER_REPOSITORIES` contains an explicit comma-separated list of enrolled repository names (without the owner). This keeps private inventory out of public workflow logs. The supervisor refuses mutation without this allowlist and never inspects repositories outside it; the enrollment variable is an additional gate, not a replacement.
+
 Control repository variables:
 - `INCLUDED_MINUTES`: entitlement, default `2000`.
 - `RESERVE_MINUTES`: safety margin, default `100`.
@@ -91,7 +93,7 @@ Host-local and private/VPN/metadata destinations are denied for the isolated Uni
 
 1. Verify dedicated App authentication, billing read, runner read and repository variable writes.
 2. Validate capacity against representative application builds; synthetic Linux success is not proof that every production build fits.
-3. Add scheduler-liveness/keepalive protection: GitHub may disable public scheduled workflows after prolonged repository inactivity.
+3. Verify scheduled execution and its bounded public activity heartbeat (`.github/runner-control-heartbeat`, at most once per 28 days); GitHub schedules remain best-effort.
 4. Apply reviewed changes to all intended default/integration branches and verify their deployed contents; keep routing hosted until ready.
 5. Exercise automatic quota routing, strict VPS, offline queue recovery, code-failure non-retry and partial-deployment safety.
 6. Enable enrollment/supervision, verify the scheduled path and monitor real workload capacity.
