@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from control.api import APIError, GitHub
 from control.policy import (
     RUNNER_LABEL, has_executed_steps, permits_fallback, preferred_runner,
-    quota_from_usage, recovery_candidate,
+    quota_from_usage, recovery_candidate, pool_state,
 )
 
 RECOVERY_VAR = 'KODIFY_RUNNER_RECOVERY'
@@ -106,8 +106,7 @@ class Supervisor:
         if variables.get('KODIFY_RUNNER_MODE') != preferred:
             self.set_variable(repo, 'KODIFY_RUNNER_MODE', preferred)
             self.counts['routing_changes'] += 1
-        online = any(r.get('status') == 'online' and RUNNER_LABEL in {
-            str(x['name']).lower() for x in r.get('labels', [])} for r in runners)
+        online, saturated = pool_state(runners)
         state = json.loads(variables.get(RECOVERY_VAR, '[]'))
         remaining = []
         for entry in state:
@@ -139,7 +138,8 @@ class Supervisor:
             jobs = self.api.pages(f'/repos/{repo}/actions/runs/{run["id"]}/jobs?filter=latest', 'jobs')
             annotations = self.read_annotations(repo, jobs) if run.get('conclusion') == 'failure' else {}
             decision = recovery_candidate(run, jobs, annotations, now=self.now,
-                                          runners_online=online, safe_job_names=safe_names)
+                                          runners_online=online, pool_saturated=saturated,
+                                          safe_job_names=safe_names)
             self.counts[decision] += 1
             if decision == 'manual':
                 # Private metadata remains in the private repository, not public logs.
@@ -149,8 +149,11 @@ class Supervisor:
                 # Re-fetch immediately before cancellation to narrow a dispatch race.
                 latest_jobs = self.api.pages(f'/repos/{repo}/actions/runs/{run["id"]}/jobs?filter=latest', 'jobs')
                 latest = self.api.request('GET', f'/repos/{repo}/actions/runs/{run["id"]}')
+                live_online, live_saturated = pool_state(
+                    self.api.pages(f'/orgs/{self.owner}/actions/runners', 'runners'))
                 if recovery_candidate(latest, latest_jobs, {}, now=self.now,
-                                      runners_online=online) != 'cancel-queued':
+                                      runners_online=live_online,
+                                      pool_saturated=live_saturated) != 'cancel-queued':
                     continue
                 entry = {'run_id': run['id'], 'attempt': run['run_attempt'], 'stage': 'cancel-requested'}
                 remaining.append(entry)

@@ -59,10 +59,17 @@ def preferred_runner(quota: Quota | None, runners: list[dict[str, Any]],
         return "github"
     for runner in runners:
         labels = {str(label.get("name", "")).lower() for label in runner.get("labels", [])}
-        if runner.get("status") == "online" and RUNNER_LABEL in labels:
-            # Busy means capacity is occupied, not broken; preserve the queue.
+        if runner.get("status") == "online" and runner.get("busy") is False and RUNNER_LABEL in labels:
+            # Overflow goes hosted; never interrupt the job occupying the VPS.
             return "vps"
     return "github"
+
+
+def pool_state(runners: list[dict[str, Any]]) -> tuple[bool, bool]:
+    """Return (online, saturated); unknown busy status never authorizes rescue."""
+    online = [r for r in runners if r.get('status') == 'online' and RUNNER_LABEL in {
+        str(label.get('name', '')).lower() for label in r.get('labels', [])}]
+    return bool(online), bool(online) and all(r.get('busy') is True for r in online)
 
 
 def runner_expression(hosted: str = "ubuntu-latest") -> str:
@@ -137,6 +144,8 @@ def recovery_candidate(run: dict[str, Any], jobs: list[dict[str, Any]],
                        annotations_by_job: dict[int, list[dict[str, Any]]],
                        *, now: datetime, runners_online: bool,
                        queue_grace_seconds: int = 300,
+                       pool_saturated: bool = False,
+                       overflow_grace_seconds: int = 60,
                        safe_job_names: frozenset[str] = frozenset()) -> str:
     """Return 'cancel-queued', 'retry-failed', 'manual', or 'none'.
 
@@ -151,13 +160,16 @@ def recovery_candidate(run: dict[str, Any], jobs: list[dict[str, Any]],
         return "none"
     active = [j for j in jobs if j.get("status") != "completed"]
     queued = [j for j in active if j.get("status") == "queued" and permits_fallback(j)]
-    if queued and not runners_online:
+    if queued and (not runners_online or pool_saturated):
         if any(j.get('conclusion') in {'failure', 'timed_out', 'cancelled'} for j in jobs):
             # A queue rescue must not accidentally retry unrelated test failures
             # or jobs a human already cancelled.
             return 'none'
         created = parse_time(run.get("run_started_at") or run.get("created_at"))
-        if created is None or (now - created).total_seconds() < queue_grace_seconds:
+        grace = overflow_grace_seconds if runners_online and pool_saturated else queue_grace_seconds
+        if created is None or (now - created).total_seconds() < grace:
+            return "none"
+        if any(has_executed_steps(j) for j in queued):
             return "none"
         if any(j.get("status") == "in_progress" for j in active):
             return "none"
