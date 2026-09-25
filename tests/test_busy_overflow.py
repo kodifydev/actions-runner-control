@@ -1,5 +1,6 @@
 """Synthetic policy/API fixtures: never real deployment results."""
 import copy
+import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -75,3 +76,22 @@ class BusyOverflowTests(unittest.TestCase):
         root = Path(__file__).parents[1]
         self.assertIn('python-is-python3', (root / 'infra/Dockerfile').read_text())
         self.assertIn("'--env', f'HOME={runner_path}'", (root / 'infra/runner-host.py').read_text())
+
+    def test_submitted_recovery_stage_survives_eventual_consistency(self):
+        api = Mock()
+        variables = {'KODIFY_RUNNER_MANAGED': '1', 'KODIFY_RUNNER_MODE': 'github',
+                     'KODIFY_RUNNER_RECOVERY': json.dumps([
+                         {'run_id': 7, 'attempt': 1, 'stage': 'cancel-requested'}])}
+        api.variables.side_effect = lambda repo: dict(variables)
+        api.set_variable.side_effect = lambda repo, key, value: variables.update({key: value})
+        # The API deliberately continues returning attempt 1 after a successful POST.
+        api.request.return_value = {**RUN, 'status': 'completed', 'conclusion': 'cancelled'}
+        api.pages.side_effect = lambda path, key=None: [
+            {**JOB, 'status': 'completed', 'conclusion': 'cancelled'}] if '/jobs?' in path else []
+        repo = {'full_name': 'example/private', 'name': 'private', 'private': True}
+        supervisor = Supervisor(api, 'example', apply=True, now=NOW)
+        supervisor.inspect_repository(repo, QUOTA, [BUSY])
+        self.assertEqual(json.loads(variables['KODIFY_RUNNER_RECOVERY'])[0]['stage'], 'rerun-submitted')
+        supervisor.inspect_repository(repo, QUOTA, [BUSY])
+        posts = [call for call in api.request.call_args_list if call.args[0] == 'POST']
+        self.assertEqual(len(posts), 1, 'Stale GitHub reads must not repeat the rerun POST')

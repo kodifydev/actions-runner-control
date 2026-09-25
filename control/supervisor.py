@@ -108,6 +108,10 @@ class Supervisor:
             self.counts['routing_changes'] += 1
         online, saturated = pool_state(runners)
         state = json.loads(variables.get(RECOVERY_VAR, '[]'))
+        # Recovery entries can mutate in-place after a successful POST while
+        # GitHub still returns the previous attempt. Compare to the persisted
+        # snapshot, not to a list sharing those same mutable dictionaries.
+        original_state = json.dumps(state, sort_keys=True)
         remaining = []
         for entry in state:
             if entry.get('stage') == 'rerun-submitted':
@@ -121,7 +125,7 @@ class Supervisor:
             updated = self.attempt_recovery(repo, entry)
             if updated:
                 remaining.append(updated)
-        if state != remaining:
+        if original_state != json.dumps(remaining, sort_keys=True):
             self.save_state(repo, remaining)
         known = {int(x['run_id']) for x in remaining}
         runs = {}
