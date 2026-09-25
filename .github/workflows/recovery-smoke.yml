@@ -1,0 +1,55 @@
+name: Recovery semantics smoke test
+# Synthetic tests only: no application checkout, deployment, or secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      runner_target:
+        description: Choose github for a normal smoke test; vps for the offline recovery test
+        type: choice
+        options: [auto, github, vps]
+        default: github
+        required: true
+      allow_fallback:
+        description: Allow a rerun to select GitHub-hosted execution
+        type: boolean
+        default: true
+        required: true
+permissions:
+  contents: read
+jobs:
+  setup-once:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Record the original attempt
+        env:
+          ATTEMPT: ${{ github.run_attempt }}
+        run: test "$ATTEMPT" = 1
+  queued-one:
+    needs: setup-once
+    runs-on: ${{ ((inputs.runner_target == 'vps' || (inputs.runner_target != 'github' && vars.KODIFY_RUNNER_MODE == 'vps')) && (github.run_attempt == 1 || (github.event_name == 'workflow_dispatch' && inputs.allow_fallback == false))) && fromJSON((github.event_name != 'workflow_dispatch' || inputs.allow_fallback != false) && '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-enabled"]' || '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-disabled"]') || 'ubuntu-latest' }}
+    timeout-minutes: 2
+    steps:
+      - name: Verify hosted recovery
+        env:
+          ATTEMPT: ${{ github.run_attempt }}
+          ENVIRONMENT: ${{ runner.environment }}
+          SIMULATE: ${{ inputs.runner_target == 'vps' }}
+        run: |
+          test "$ENVIRONMENT" = github-hosted
+          if [ "$SIMULATE" = true ]; then test "$ATTEMPT" -gt 1; fi
+  queued-two:
+    needs: setup-once
+    runs-on: ${{ ((inputs.runner_target == 'vps' || (inputs.runner_target != 'github' && vars.KODIFY_RUNNER_MODE == 'vps')) && (github.run_attempt == 1 || (github.event_name == 'workflow_dispatch' && inputs.allow_fallback == false))) && fromJSON((github.event_name != 'workflow_dispatch' || inputs.allow_fallback != false) && '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-enabled"]' || '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-disabled"]') || 'ubuntu-latest' }}
+    timeout-minutes: 2
+    steps:
+      - name: Verify the other cancelled job also resumes
+        env:
+          ENVIRONMENT: ${{ runner.environment }}
+        run: test "$ENVIRONMENT" = github-hosted
+  dependent:
+    needs: [queued-one, queued-two]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: printf '%s\n' 'Both recovered jobs completed; no prior successful job was replayed.'
