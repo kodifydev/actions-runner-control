@@ -1,0 +1,13 @@
+[Unit]
+Description=Bounded filesystem for disposable Actions runner data
+Before=kodify-rootless-docker.service
+
+[Mount]
+What=/var/lib/kodifyci-disk.img
+Where=/var/lib/kodifyci/data
+Type=ext4
+Options=loop,nodev,nosuid
+TimeoutSec=30
+
+[Install]
+WantedBy=multi-user.target

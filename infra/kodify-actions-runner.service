@@ -1,0 +1,27 @@
+[Unit]
+Description=Disposable organization Actions runner lifecycle
+After=network-online.target var-lib-kodifyci-data.mount
+Wants=network-online.target
+Requires=var-lib-kodifyci-data.mount
+
+[Service]
+# Install with the trusted bootstrap account; jobs run as a DIFFERENT Unix user.
+User=@BOOTSTRAP_USER@
+StateDirectory=kodify-runner-host
+StateDirectoryMode=0700
+Environment=HOME=@BOOTSTRAP_HOME@
+Environment=PATH=@BOOTSTRAP_HOME@/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/python3 /opt/kodify-runner/runner-host.py
+ExecStopPost=/usr/bin/sudo -n /usr/bin/systemctl stop kodify-rootless-docker.service
+Restart=always
+RestartSec=15
+TimeoutStopSec=70
+KillMode=control-group
+Nice=10
+CPUQuota=100%
+MemoryMax=256M
+UMask=0077
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

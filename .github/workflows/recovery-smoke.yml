@@ -27,7 +27,7 @@ jobs:
         run: test "$ATTEMPT" = 1
   queued-one:
     needs: setup-once
-    runs-on: ${{ ((inputs.runner_target == 'vps' || (inputs.runner_target != 'github' && vars.KODIFY_RUNNER_MODE == 'vps')) && (github.run_attempt == 1 || (github.event_name == 'workflow_dispatch' && inputs.allow_fallback == false))) && fromJSON((github.event_name != 'workflow_dispatch' || inputs.allow_fallback != false) && '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-enabled"]' || '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-disabled"]') || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.runner_target == 'vps' || (inputs.runner_target != 'github' && vars.KODIFY_RUNNER_MODE == 'vps')) && (github.run_attempt == 1 || (github.event_name == 'workflow_dispatch' && inputs.allow_fallback == false))) && fromJSON((github.event_name != 'workflow_dispatch' || inputs.allow_fallback != false) && '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-enabled"]' || '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-disabled"]') || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - name: Verify hosted recovery
@@ -40,7 +40,7 @@ jobs:
           if [ "$SIMULATE" = true ]; then test "$ATTEMPT" -gt 1; fi
   queued-two:
     needs: setup-once
-    runs-on: ${{ ((inputs.runner_target == 'vps' || (inputs.runner_target != 'github' && vars.KODIFY_RUNNER_MODE == 'vps')) && (github.run_attempt == 1 || (github.event_name == 'workflow_dispatch' && inputs.allow_fallback == false))) && fromJSON((github.event_name != 'workflow_dispatch' || inputs.allow_fallback != false) && '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-enabled"]' || '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-disabled"]') || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.runner_target == 'vps' || (inputs.runner_target != 'github' && vars.KODIFY_RUNNER_MODE == 'vps')) && (github.run_attempt == 1 || (github.event_name == 'workflow_dispatch' && inputs.allow_fallback == false))) && fromJSON((github.event_name != 'workflow_dispatch' || inputs.allow_fallback != false) && '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-enabled"]' || '["self-hosted","Linux","X64","kodify-vps","kodify-fallback-disabled"]') || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - name: Verify the other cancelled job also resumes
