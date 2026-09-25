@@ -40,6 +40,8 @@ def migrate(text: str, *, private=True) -> tuple[str, dict]:
     existing_manual = 'workflow_dispatch' in events
     compatible = [key for key, job in doc['jobs'].items()
                   if isinstance(job.get('runs-on'), str)
+                  and not (not job.get('container') and any(
+                      service.get('ports') for service in job.get('services', {}).values()))
                   and (job['runs-on'] in SUPPORTED or 'vars.KODIFY_RUNNER_MODE' in job['runs-on'])]
     # A reusable caller without its own runs-on still forwards manual choice.
     local_calls = [key for key, job in doc['jobs'].items()
